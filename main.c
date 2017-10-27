@@ -26,7 +26,7 @@
 */         
 /* MODULE main */
 
-
+//SOY JIMMY YEAH BABY
 /* Including needed modules to compile this module/procedure */
 #include "Cpu.h"
 #include "Events.h"
@@ -131,7 +131,7 @@
 #define REVERSA					1
 #define	ADELANTE				0
 
-#define PERDIDA_REMOTO			1000	//ms que deben pasar para definir la perdida de la señal REMOTO
+#define PERDIDA_REMOTO			1000	//ms que deben pasar para definir la perdida de la seÃ±al REMOTO
 #define CUENTAS_REMOTO			100		//Limite para definir el ancho del pulso CALIBRADO
 #define RESET_VELOCIDAD_MS		600
 #define	VELOCIDAD				0
@@ -225,7 +225,7 @@ typedef struct pap {
 	uint8 direccion_set;			//SETPOINT de direcion
 	uint8 FLAG_EN;					//PASO A PASO ENEABLE
 	uint8 FLAG_SENTIDO;				//PASO A PASO SENTIDO DE GIRO
-	uint8 FLAG_DIRECCION;			//FLAG usado para definir cuando hay una señal de direccion
+	uint8 FLAG_DIRECCION;			//FLAG usado para definir cuando hay una seÃ±al de direccion
 	
 } PAP;
 
@@ -235,7 +235,7 @@ typedef struct remoto {
 	uint16 remoto_cero;				//Ancho del pulso en CERO
 	uint16 cuenta_remoto;			//Cuenta las veces para definir ancho de CALIBRACION
 	uint16 ms;						//Ancho del pulso del receptor REMOTO
-	uint16 perdida_senal_remoto;	//Contador para detectar perdida de señal en modo REMOTO o CALIBRACION
+	uint16 perdida_senal_remoto;	//Contador para detectar perdida de seÃ±al en modo REMOTO o CALIBRACION
 } REMOTO;
 
 typedef struct serie {
@@ -321,7 +321,7 @@ byte pwm_direccion;					//Contador para el PWM Manual
 word pwm_pasos;						//Cantidad de PASOS que se ha dado
 
 // REMOTO
-word perdida_senal_remoto[2];		//Contador para detectar perdida de señal en modo REMOTO o CALIBRACION
+word perdida_senal_remoto[2];		//Contador para detectar perdida de seÃ±al en modo REMOTO o CALIBRACION
 word remoto_cero[2];				//Ancho del pulso en CALIBRACION
 
 
@@ -363,7 +363,7 @@ byte lectura_direccion;			//Lee la posicion del PASO a PASO
 word direccion_set = 196;				//SETPOINT de direcion
 
 byte FLAG_PASOS;				//FLAG usada en el ESTADO PASOS
-byte FLAG_DIRECCION = false;	//FLAG usado para definir cuando hay una señal de direccion
+byte FLAG_DIRECCION = false;	//FLAG usado para definir cuando hay una seÃ±al de direccion
 
 //######################NUEVO!
 
@@ -507,7 +507,7 @@ int main(void)
 				  Reset_PIDs();
 			  }
 		  }
-		  //PERDIDA DE SEÑAL - SALE DEL ESTADO
+		  //PERDIDA DE SEÃ‘AL - SALE DEL ESTADO
 		  if (velocidad.perdida_senal_remoto >= 500 || direccion.perdida_senal_remoto >= 500){
 			  velocidad.perdida_senal_remoto = 0;
 			  direccion.perdida_senal_remoto = 0;
@@ -558,7 +558,7 @@ int main(void)
 		  motor_dd.tension = RPM_SET;
 		  motor_ti.tension = RPM_SET;
 		  motor_td.tension = RPM_SET;
-		  //PERDIDA DE SEÑAL - SALE DEL ESTADO
+		  //PERDIDA DE SEÃ‘AL - SALE DEL ESTADO
 		  if (velocidad.perdida_senal_remoto >= 500 || direccion.perdida_senal_remoto >= 500){
 			  velocidad.perdida_senal_remoto = 0;
 			  direccion.perdida_senal_remoto = 0;
@@ -958,7 +958,7 @@ void Reset_PIDs(void){
 	  CtrlPID_TI_Reset();
 }
 void RX(void){
-	//####### DECODIFICAR SEÑAL
+	//####### DECODIFICAR SEÃ‘AL
 	word setpoint;
 	
 	if (FLAG_RX){
