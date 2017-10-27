@@ -26,7 +26,7 @@
 */         
 /* MODULE main */
 
-//SOY JIMMY YEAH BABY
+//JIMMY A PUESTO UN CAPACITOR AQUI -||-
 /* Including needed modules to compile this module/procedure */
 #include "Cpu.h"
 #include "Events.h"
