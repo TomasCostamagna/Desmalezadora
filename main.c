@@ -110,144 +110,10 @@
 #include "IO_Map.h"
 #include "PDD_Includes.h"
 #include "Init_Config.h"
+#include "Struct.h"
+#include "Defines.h"
 
-/*
- * ######################## DEFINES ###############################
- */
-#define LA_VELOCIDAD			1
-#define LA_REMOTO				4
-#define LC_REMOTO				2
-#define LC_PC					3
-#define CALIBRACION				6
-#define PASOS					7
 
-#define	MOTOR_DI				0
-#define	MOTOR_DD				1
-#define	MOTOR_TI				2
-#define	MOTOR_TD				3
-
-#define DERECHA					1
-#define IZQUIERDA				0
-#define REVERSA					1
-#define	ADELANTE				0
-
-#define PERDIDA_REMOTO			1000	//ms que deben pasar para definir la perdida de la señal REMOTO
-#define CUENTAS_REMOTO			100		//Limite para definir el ancho del pulso CALIBRADO
-#define RESET_VELOCIDAD_MS		600
-#define	VELOCIDAD				0
-#define	DIRECCION				1
-#define REMOTO_ANCHO_PULSO		28		//Desplazamiento MINIMO del ancho del pulso REMOTO x10us
-#define REMOTO_VENTANA			0		//definir
-#define REMOTO_VEL_CERO			150
-#define REMOTO_VEL_MAX			204
-#define REMOTO_VEL_MIN			116
-#define REMOTO_DIR_CERO			150		
-#define REMOTO_DIR_MAX			205
-#define REMOTO_DIR_MIN			97
-#define VENTANA_DIRECCION		10
-
-#define K_PID					33
-#define TI_PID					0.4
-
-#define BUTTON_PRESSED      	0
-#define BUTTON_NOT_PRESSED  	1
-#define true					1
-#define false					0
-
-#define DUTY_MAX				0
-#define DUTY_MIN				40000//37000
-
-#define LIMITE_DIRECCION_DERECHO	246
-#define LIMITE_DIRECCION_IZQUIERDO	150
-
-#define SET_RPM_MAX				100		//definir
-#define SET_RPM_MIN				0
-
-#define U_MAX					19350
-#define U_MIN					0
-
-#define RPM_STEP				5000//5
-#define FREQ_INPUT				374912
-#define FREQ_RECEPTOR			2999296
-#define ADC_MIN					0
-#define ADC_MAX					3300
-#define BIT_16					65400
-#define GET_VEL(x)				(((x<<1)*1000*10)/FREQ_INPUT)
-#define GET_RECEP(x)			(((x)*10000*10)/FREQ_RECEPTOR)
-
-#define MAX16BIT				65535
-#define MIN16BIT				0
-
-#define BUF_SIZE 				64
-#define inc(x) 					{x++; x&=(BUF_SIZE-1);}
-
-#define TIMEOUT_RX				5000
-#define DIRECCION_MODBUS		9
-
-#define DIRECCION_HORARIA		BitOut_DIR_SENT_SetVal()
-#define	DIRECCION_ANTI			BitOut_DIR_SENT_ClrVal()
-#define DIRECCION_ON			BitOut_DIR_EN_ClrVal()
-#define DIRECCION_OFF			BitOut_DIR_EN_SetVal()
-
-/*
- * ######################## ESTRUCTURAS ###############################
- */
-typedef struct input_capture {
-	uint16 datos[2];				//Contador de pulsos de cada flanco [1xMOTOR 2xVariableAnteriorYActual] 
-	int16 periodo;					//Diferencia entre los pulsos 2 y 1 de cada MOTOR
-	uint8 indices;					//Indice de pulsos
-	int8 err;						//Por si ocurre un error al momento de leer pulsos
-} INPUT_CAPTURE;
-
-typedef struct motor {
-	INPUT_CAPTURE Input;
-	byte FLAG_TIEMPO;				//FLAG de VELOCIDAD LEIDA
-	uint32 posicion_pulsos;			//Contador de Flancos del Motor
-	uint16 cuenta_vel_cero;			//Contador para determinar Vel CERO si no se registran nuevos flancos
-	uint16 adc;						//Valores de los ADC de cada MOTOR
-	uint16 ms;						//Velocidad en ms del encoder
-	uint16 rpm;						//Lectura RPM
-	uint16 RPM_set;					//SETPOINT DE RPM GLOBAL
-	int32 error_RPM;				//Entrada al PID [SETPOINT - LECTURA]
-	
-	uint16 control;					//Salida del PID
-	uint16 tension;					//Salida del PID para la FUNCION Tension_PWM
-	uint16 duty;					//Duty aplicado a los PWM de cada MOTOR
-	uint16 duty_entrada;			//Lectura DUTY en ESTADO LA_VELOCIDAD
-	
-} MOTOR;
-
-typedef struct pap {
-	uint8 pwm_direccion;			//Contador para el PWM Manual
-	uint16 pasos_dados;				//Cantidad de PASOS que se ha dado	//pwm_pasos
-	uint16 pasos_adar;				//Pasos que se desean - PASO A PASO //pasos_direccion
-	uint8 direccion_lectura;		//Lee la posicion del PASO a PASO
-	uint8 direccion_set;			//SETPOINT de direcion
-	uint8 FLAG_EN;					//PASO A PASO ENEABLE
-	uint8 FLAG_SENTIDO;				//PASO A PASO SENTIDO DE GIRO
-	uint8 FLAG_DIRECCION;			//FLAG usado para definir cuando hay una señal de direccion
-	
-} PAP;
-
-typedef struct remoto {
-	INPUT_CAPTURE Input;
-	byte FLAG_TIEMPO;				//FLAG de VELOCIDAD LEIDA
-	uint16 remoto_cero;				//Ancho del pulso en CERO
-	uint16 cuenta_remoto;			//Cuenta las veces para definir ancho de CALIBRACION
-	uint16 ms;						//Ancho del pulso del receptor REMOTO
-	uint16 perdida_senal_remoto;	//Contador para detectar perdida de señal en modo REMOTO o CALIBRACION
-} REMOTO;
-
-typedef struct serie {
-	uint8 tx_buf[BUF_SIZE];            	// TX buffer
-	uint8 tx_next;						// TX indice siguiente a GUARDAR						
-	uint8 tx_sent;					  	// TX indice siguiente a MANDAR
-	uint8 rx_buf[BUF_SIZE];            	// RX buffer
-	uint8 rx_next;						// RX indice siguiente a GUARDAR
-	uint8 rx_read;  					// RX indice siguiente a LEERx
-	uint8 FLAG_RX;						//Hay datos para procesar RECIBIDOS
-	uint8 FLAG_TX;						//Hay datos para procesar ENVIAR
-} SERIE;
 /*
  * ######################## DECLARAR FUNCIONES ###############################
  */
@@ -511,7 +377,7 @@ int main(void)
 		  if (velocidad.perdida_senal_remoto >= 500 || direccion.perdida_senal_remoto >= 500){
 			  velocidad.perdida_senal_remoto = 0;
 			  direccion.perdida_senal_remoto = 0;
-			  ESTADO = 30;
+			  ESTADO = PERDIDA_SENAL;
 		  }
 		  if (cuenta_ENVIAR >= 500){
 			  cuenta_ENVIAR = 0;
@@ -562,7 +428,7 @@ int main(void)
 		  if (velocidad.perdida_senal_remoto >= 500 || direccion.perdida_senal_remoto >= 500){
 			  velocidad.perdida_senal_remoto = 0;
 			  direccion.perdida_senal_remoto = 0;
-			  ESTADO = 30;
+			  ESTADO = PERDIDA_SENAL;
 		  }
 		  if (cuenta_ENVIAR >= 500){
 			  cuenta_ENVIAR = 0;
@@ -622,10 +488,10 @@ int main(void)
 			  lectura_nueva = false;
 		  
 			  if (velocidad.ms == velocidad.remoto_cero){
-				  cuenta_remoto_vel++;			  
+				  velocidad.cuenta_remoto++;			  
 			  } else {
 				  velocidad.remoto_cero = velocidad.ms;
-				  cuenta_remoto_vel = 0;
+				  velocidad.cuenta_remoto = 0;
 			  }
 			  if (direccion.ms == direccion.remoto_cero){
 				  cuenta_remoto_dir++;
@@ -636,6 +502,11 @@ int main(void)
 			  if (cuenta_remoto_vel >= CUENTAS_REMOTO && cuenta_remoto_dir >= CUENTAS_REMOTO){
 				  ESTADO = LC_REMOTO;
 				  lectura_nueva = true;
+			  }
+			  if (velocidad.perdida_senal_remoto >= 500 || direccion.perdida_senal_remoto >= 500){
+				  velocidad.perdida_senal_remoto = 0;
+				  direccion.perdida_senal_remoto = 0;
+				  ESTADO = PERDIDA_SENAL;
 			  }
 		  }
 		  break;
@@ -657,8 +528,8 @@ int main(void)
 		  }		  
 		  break;
 		  
-	  case 30:
-		  ESTADO = 30;
+	  case PERDIDA_SENAL:
+		  ESTADO = CALIBRACION;
 		  motor_di.tension = 0;
 		  motor_dd.tension = 0;
 		  motor_ti.tension = 0;
@@ -712,8 +583,7 @@ int main(void)
 	  TX();
 	  if (cuenta_RECIBIR >= 500){
 		  cuenta_RECIBIR = 0;
-		  //FLAG_TX = true;
-		  
+		  //FLAG_TX = true;		  
 	  }
 	  if (cnt_aux >= 1000){
 		  cnt_aux = 0;
@@ -842,14 +712,12 @@ void Get_Corriente(void){
 		ADC_I_Measure(FALSE);
 	}
 }
-void Get_Direccion(void){
-	
+void Get_Direccion(void){	
 		byte lectura;
 		byte z;
-		if (cuenta_DIRECCION >= 100){
-
-			cuenta_DIRECCION = cuenta_DIRECCION - 100;
-			}
+		if (cuenta_DIRECCION >= 10){
+			cuenta_DIRECCION = cuenta_DIRECCION - 10;
+		}
 		lectura = 0;
 		z = (!BIT0_GetVal()) ? 1 : 0;
 		lectura = lectura + z;
@@ -867,10 +735,12 @@ void Get_Direccion(void){
 		lectura = lectura + z;
 		z = (!BIT7_GetVal()) ? 128 : 0;
 		lectura = lectura + z;
-		lectura_direccion = GrayToBin(lectura);
+		pap.direccion_lectura = GrayToBin(lectura);		
+		/*
 		if ((direccion_set <= (lectura_direccion + 1)) && (direccion_set >= (lectura_direccion - 1))){
 			lectura_direccion = lectura_direccion;
-			  }
+		}
+		*/
 		  
 }
 void RPM_Cero(void){

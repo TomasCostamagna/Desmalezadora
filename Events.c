@@ -39,34 +39,13 @@
 #include "Events.h"
 #include "Init_Config.h"
 #include "PDD_Includes.h"
+#include "Struct.h"
+#include "Defines.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif 
-/*
- * ################# DEFINES #################
- */
-#define LA_VELOCIDAD			1
-#define LC_REMOTO				2
-#define LC_PC					3
-#define CALIBRACION				6
-#define PASOS					7
 
-#define	MOTOR_DI				0
-#define	MOTOR_DD				1
-#define	MOTOR_TI				2
-#define	MOTOR_TD				3
-
-#define	VELOCIDAD				0
-#define	DIRECCION				1
-
-#define DERECHA					1
-#define IZQUIERDA				0
-#define DIR_PWM_DUTY			5 //ANTES ERA 2
-#define FREQ_PWM_DUTY			10
-
-#define BUF_SIZE 				64
-#define inc(x) 					{x++; x&=(BUF_SIZE-1);}
 /*
  * ######################## VARIABLES GLOBALES ###############################
  */
@@ -115,6 +94,16 @@ extern byte FLAG_TX;						//Hay datos para procesar ENVIAR
 extern byte pwm_direccion;					//Define el DUTY CICLE del PWM de la direccion
 extern word pwm_pasos;						//Cantidad de PASOS que se ha dado
 
+// NUEVO
+extern MOTOR motor_di;
+extern MOTOR motor_dd;
+extern MOTOR motor_ti;
+extern MOTOR motor_td;
+
+extern REMOTO direccion;
+extern REMOTO velocidad;
+
+extern PAP pap;
 
 /* User includes (#include below this line is not maintained by Processor Expert) */
 
@@ -136,16 +125,15 @@ extern word pwm_pasos;						//Cantidad de PASOS que se ha dado
 */
 void Input_Encoder_DI_OnCapture(void)
 {
-	//cuenta_vel_cero[MOTOR_DI] = 0;
-	if (index[MOTOR_DI] == 2){
-		Period[MOTOR_DI] = Data[MOTOR_DI][1] - Data[MOTOR_DI][0];
-		index[MOTOR_DI] = 0;
-		FLAG_TIEMPO[MOTOR_DI] = 1;
-		posicion_pulsos[MOTOR_DI]++;
-		cuenta_vel_cero[MOTOR_DI] = 0;
+	if (motor_di.Input.indices == 2){
+		motor_di.Input.periodo = motor_di.Input.datos[1] - motor_di.Input.datos[0];
+		motor_di.Input.indices = 0;
+		motor_di.FLAG_TIEMPO = 1;
+		motor_di.posicion_pulsos++;
+		motor_di.cuenta_vel_cero = 0;
 	}
-	err[MOTOR_DI] = Input_Encoder_DI_GetCaptureValue(&Data[MOTOR_DI][index[MOTOR_DI]]);
-	index[MOTOR_DI]++;
+	motor_di.Input.err = Input_Encoder_DI_GetCaptureValue(&motor_di.Input.datos[motor_di.Input.indices]);
+	motor_di.Input.indices++;
   /* Write your code here ... */
 }
 
@@ -208,12 +196,13 @@ void IntTiempo_OnInterrupt(void)
 	cuenta_PID++;
 	cuenta_RX++;
 	cuenta_DIRECCION++;
-	for (i=0;i<=3;i++){//SUMA CUENTA RESET VEL CERO
-		cuenta_vel_cero[i] += 1;			
-	}
-	if (ESTADO == CALIBRACION || ESTADO == LC_REMOTO){
-		perdida_senal_remoto[0]++;
-		perdida_senal_remoto[1]++;
+	motor_di.cuenta_vel_cero += 1;
+	motor_dd.cuenta_vel_cero += 1;
+	motor_ti.cuenta_vel_cero += 1;
+	motor_td.cuenta_vel_cero += 1;
+	if (ESTADO == CALIBRACION || ESTADO == LC_REMOTO || ESTADO == LA_REMOTO){
+		velocidad.perdida_senal_remoto++;
+		direccion.perdida_senal_remoto++;
 	}
   /* Write your code here ... */
 }
@@ -253,16 +242,15 @@ void Cpu_OnNMI(void)
 void Input_Encoder_DD_OnCapture(void)
 {
   /* Write your code here ... */
-	//cuenta_vel_cero[MOTOR_DD] = 0;
-	if (index[MOTOR_DD] == 2){
-		Period[MOTOR_DD] = Data[MOTOR_DD][1] - Data[MOTOR_DD][0];
-		index[MOTOR_DD] = 0;
-		FLAG_TIEMPO[MOTOR_DD] = 1;
-		posicion_pulsos[MOTOR_DD]++;
-		cuenta_vel_cero[MOTOR_DD] = 0;
+	if (motor_dd.Input.indices == 2){
+		motor_dd.Input.periodo = motor_dd.Input.datos[1] - motor_dd.Input.datos[0];
+		motor_dd.Input.indices = 0;
+		motor_dd.FLAG_TIEMPO = 1;
+		motor_dd.posicion_pulsos++;
+		motor_dd.cuenta_vel_cero = 0;
 	}
-	err[MOTOR_DD] = Input_Encoder_DD_GetCaptureValue(&Data[MOTOR_DD][index[MOTOR_DD]]);
-	index[MOTOR_DD]++;
+	motor_dd.Input.err = Input_Encoder_DI_GetCaptureValue(&motor_dd.Input.datos[motor_dd.Input.indices]);
+	motor_dd.Input.indices++;
 }
 
 /*
@@ -282,16 +270,15 @@ void Input_Encoder_DD_OnCapture(void)
 void Input_Encoder_TD_OnCapture(void)
 {
   /* Write your code here ... */
-	//cuenta_vel_cero[MOTOR_TD] = 0;
-	if (index[MOTOR_TD] == 2){
-		Period[MOTOR_TD] = Data[MOTOR_TD][1] - Data[MOTOR_TD][0];
-		index[MOTOR_TD] = 0;
-		FLAG_TIEMPO[MOTOR_TD] = 1;
-		posicion_pulsos[MOTOR_TD]++;
-		cuenta_vel_cero[MOTOR_TD] = 0;
+	if (motor_td.Input.indices == 2){
+		motor_td.Input.periodo = motor_td.Input.datos[1] - motor_td.Input.datos[0];
+		motor_td.Input.indices = 0;
+		motor_td.FLAG_TIEMPO = 1;
+		motor_td.posicion_pulsos++;
+		motor_td.cuenta_vel_cero = 0;
 	}
-	err[MOTOR_TD] = Input_Encoder_TD_GetCaptureValue(&Data[MOTOR_TD][index[MOTOR_TD]]);
-	index[MOTOR_TD]++;
+	motor_td.Input.err = Input_Encoder_DI_GetCaptureValue(&motor_td.Input.datos[motor_td.Input.indices]);
+	motor_td.Input.indices++;
 }
 
 /*
@@ -311,16 +298,15 @@ void Input_Encoder_TD_OnCapture(void)
 void Input_Encoder_TI_OnCapture(void)
 {
   /* Write your code here ... */
-	//cuenta_vel_cero[MOTOR_TI] = 0;
-	if (index[MOTOR_TI] == 2){
-		Period[MOTOR_TI] = Data[MOTOR_TI][1] - Data[MOTOR_TI][0];
-		index[MOTOR_TI] = 0;
-		FLAG_TIEMPO[MOTOR_TI] = 1;
-		posicion_pulsos[MOTOR_TI]++;
-		cuenta_vel_cero[MOTOR_TI] = 0;
+	if (motor_ti.Input.indices == 2){
+		motor_ti.Input.periodo = motor_ti.Input.datos[1] - motor_ti.Input.datos[0];
+		motor_ti.Input.indices = 0;
+		motor_ti.FLAG_TIEMPO = 1;
+		motor_ti.posicion_pulsos++;
+		motor_ti.cuenta_vel_cero = 0;
 	}
-	err[MOTOR_TI] = Input_Encoder_TI_GetCaptureValue(&Data[MOTOR_TI][index[MOTOR_TI]]);
-	index[MOTOR_TI]++;
+	motor_ti.Input.err = Input_Encoder_DI_GetCaptureValue(&motor_ti.Input.datos[motor_ti.Input.indices]);
+	motor_ti.Input.indices++;
 }
 
 /*
@@ -378,25 +364,19 @@ void ADC_I_OnCalibrationEnd(void)
 */
 void ReceptorVelocidad_OnCapture(void)
 {
-  /* Write your code here ... */
-	/*
-	word registro_ptc;
-	BitOut_DIR_SENT_NegVal();
-	registro_ptc = GPIO_PDD_GetPortDataOutput(PTC_BASE_PTR);
-	*/
-	
-	if (index_Receptor[VELOCIDAD] == 2){
-		Period_Receptor[VELOCIDAD] = Data_Receptor[VELOCIDAD][1] - Data_Receptor[VELOCIDAD][0];
-		index_Receptor[VELOCIDAD] = 0;
-		FLAG_RECEPTOR[VELOCIDAD] = 1;
-		if (Period_Receptor[VELOCIDAD] >= 7000){
-			Data_Receptor[VELOCIDAD][0] = Data_Receptor[VELOCIDAD][1];
-			index_Receptor[VELOCIDAD] = 1;
-			FLAG_RECEPTOR[VELOCIDAD] = 0;
+  /* Write your code here ... */	
+	if (velocidad.Input.indices == 2){
+		velocidad.Input.periodo = velocidad.Input.datos[1] - velocidad.Input.datos[0];
+		velocidad.Input.indices = 0;
+		velocidad.FLAG_TIEMPO = 1;
+		if (velocidad.Input.periodo >= 7000){
+			velocidad.Input.datos[0] = velocidad.Input.datos[1];
+			velocidad.Input.indices = 1;
+			velocidad.FLAG_TIEMPO = 0;
 		}
 	}
-	err_Receptor[VELOCIDAD] = ReceptorVelocidad_GetCaptureValue(&Data_Receptor[VELOCIDAD][index_Receptor[VELOCIDAD]]);
-	index_Receptor[VELOCIDAD]++;
+	velocidad.Input.err = ReceptorVelocidad_GetCaptureValue(&velocidad.Input.datos[velocidad.Input.indices]);
+	velocidad.Input.indices++;
 }
 
 /*
@@ -416,18 +396,18 @@ void ReceptorVelocidad_OnCapture(void)
 void ReceptorDireccion_OnCapture(void)
 {
   /* Write your code here ... */
-	if (index_Receptor[DIRECCION] == 2){
-		Period_Receptor[DIRECCION] = Data_Receptor[DIRECCION][1] - Data_Receptor[DIRECCION][0];
-		index_Receptor[DIRECCION] = 0;
-		FLAG_RECEPTOR[DIRECCION] = 1;
-		if (Period_Receptor[DIRECCION] >= 7000){
-			Data_Receptor[DIRECCION][0] = Data_Receptor[DIRECCION][1];
-			index_Receptor[DIRECCION] = 1;
-			FLAG_RECEPTOR[DIRECCION] = 0;
+	if (direccion.Input.indices == 2){
+		direccion.Input.periodo = direccion.Input.datos[1] - direccion.Input.datos[0];
+		direccion.Input.indices = 0;
+		direccion.FLAG_TIEMPO = 1;
+		if (direccion.Input.periodo >= 7000){
+			direccion.Input.datos[0] = direccion.Input.datos[1];
+			direccion.Input.indices = 1;
+			direccion.FLAG_TIEMPO = 0;
 		}
 	}
-	err_Receptor[DIRECCION] = ReceptorDireccion_GetCaptureValue(&Data_Receptor[DIRECCION][index_Receptor[DIRECCION]]);
-	index_Receptor[DIRECCION]++;
+	direccion.Input.err = ReceptorVelocidad_GetCaptureValue(&direccion.Input.datos[direccion.Input.indices]);
+	direccion.Input.indices++;
 }
 
 
@@ -447,22 +427,22 @@ void ReceptorDireccion_OnCapture(void)
 */
 void IntDireccion_OnInterrupt(void)
 {
-	static byte step_direccion = DIR_PWM_DUTY;
+	static byte step_direccion = FREQ_PWM_DUTY/2; //Define el tiempo en ALTO
 	
-	if (FLAG_DIRECCION_PWM_EN){					//Esta habilitado el PWM de direccion?	
-		if (pwm_direccion == 0){				
-			BitOut_DIR_PWM_SetVal();			//Salida en ALTO
+	if (pap.FLAG_DIRECCION){						//Esta habilitado el PWM de direccion?	
+		if (pap.pwm_direccion == 0){				
+			BitOut_DIR_PWM_SetVal();				//Salida en ALTO
 		}
-		if (pwm_direccion == step_direccion){	//Ya paso el tiempo en alto?		
-			BitOut_DIR_PWM_ClrVal();			//Salida en BAJO
+		if (pap.pwm_direccion == step_direccion){	//Ya paso el tiempo en alto?		
+			BitOut_DIR_PWM_ClrVal();				//Salida en BAJO
 		}
-		pwm_direccion++;						//Incremento un step del PWM
-		if (pwm_direccion == FREQ_PWM_DUTY){	//Cuando se alcanza el STEP de la frecuencia, reseteo
-			pwm_pasos++;						//Se realizo UN PASO
-			pwm_direccion = 0;					//Reseteo el step
+		pap.pwm_direccion++;						//Incremento un step del PWM
+		if (pap.pwm_direccion == FREQ_PWM_DUTY){	//Cuando se alcanza el STEP de la frecuencia, reseteo
+			pap.pasos_dados++;						//Se realizo UN PASO
+			pap.pwm_direccion = 0;					//Reseteo el step
 		}
 	} else {
-		pwm_pasos = 0;
+		pap.pasos_dados = 0;
 		BitOut_DIR_PWM_ClrVal();
 	}
   /* Write your code here ... */
